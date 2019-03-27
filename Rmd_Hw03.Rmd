@@ -1,0 +1,98 @@
+---
+title: "Rmd_Hw03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Reference: 
+# https://systematicinvestor.wordpress.com/category/factor-model/
+# 3-asset example
+
+#=======================================
+# Step 1: Import data from excel
+#=======================================
+# If data has percentage format, then you'd better convert it into numeric format in excel
+# First you have to convert factor data into numeric
+#===========================================================================================================     
+# http://stackoverflow.com/questions/28977777/r-converting-data-frame-of-percentages-from-factor-to-numeric
+#==========================================================================================================
+# Delete % from data and convert into numeric
+#==========================================================================================================
+# After conversion, we save the file as 3firmExample_data3.csv
+```{r}
+firm_data1 = read.csv('3firmExample_data3.csv')
+str(firm_data1)
+firm_data1$date
+```
+install.packages("xts")
+install.packages("PerformanceAnalytics")
+```{r}
+library(xts)
+library(PerformanceAnalytics)
+date1 = as.Date(firm_data1[,1], "%Y/%m/%d")
+```
+#Convert firm_data1 into time series data: xts
+```{r}
+firm_data1.xts = as.xts(firm_data1[,-1], order.by = date1)
+firm.data1<-coredata(firm_data1.xts)
+summary(firm.data1)
+skewness(firm.data1)
+rbind(apply(firm.data1, 2, summary),
+      apply(firm.data1, 2, skewness),
+      apply(firm.data1, 2, kurtosis))
+```
+
+#====================================================================================
+# IF you know the ticker of stocks, then you can 
+# download directly from yahoo finance
+#=====================================================================================
+install.packages("quantmod")
+```{r}
+library(quantmod)
+tickers<-c("JWN", "SBUX", "MSFT")
+getSymbols(tickers, from = '2010-12-31', to = '2016-12-31', auto.assign = TRUE)
+```
+
+#=================================
+# Minimum variance portfolio
+#=================================
+install.packages("fBasics")
+```{r}
+library(fBasics)
+Sigma = cov(firm_data1[,2:4])
+std = sqrt(diag(Sigma))
+ones = rep(1,3)     
+one.vec = matrix(ones, ncol=1)
+a = inv(Sigma)%*%one.vec
+b = t(one.vec)%*%a
+mvp.w =a / as.numeric(b)
+mvp.w
+mvp.ret<-sum((mvp.w)*colMeans(firm_data1[,2:4]))
+mvp.ret
+```
+
+#==================================
+# Assume return is specified as 0.06.  
+# Try to find its optimal weight and standard deviation (tangency portfolio), 
+# expected return and Sharpe ratio.
+#=================================
+```{r}
+mu<-0.06/12
+return <- firm_data1[,2:4]
+Ax <- rbind(2*cov(return), colMeans(return), rep(1, ncol(return)))
+Ax <- cbind(Ax, rbind(t(tail(Ax, 2)), matrix(0, 2, 2)))
+b0 <- c(rep(0, ncol(return)), mu, 1)
+out<-solve(Ax, b0)
+wgt<-out[1:3]
+wgt
+sum(wgt)
+ret.out<-sum(wgt*colMeans(return))
+ret.out.annual<-ret.out*12
+ret.out.annual
+std.out<-sqrt(t(wgt)%*%cov(return)%*%wgt)
+std.out.annual<-std.out*sqrt(12)
+std.out.annual
+```
